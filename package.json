@@ -1,0 +1,18 @@
+{
+  "name": "markdown-converter",
+  "version": "0.0.1",
+  "author": "Sebastian Peter",
+  "license": "MIT",
+  "description": "Convert Markdown to HTML",
+  "main": "script.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "jest": {
+    "transform": {}
+  },
+  "devDependencies":   {
+    "jest": "^29.7.0"
+  }
+}
