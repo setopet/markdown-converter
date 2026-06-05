@@ -43,7 +43,7 @@ test("convert bold", () => {
 })
 
 test("convert nested formats", () => {
-    expect(markDownConverter.convert("**this is bold and *this is also italics* **")).toBe("<p><b>this is bold and <i>this is also italics</i> </b></p>");
+    expect(markDownConverter.convert("**this is bold and *this is also italics* bold**")).toBe("<p><b>this is bold and <i>this is also italics</i> bold</b></p>");
 })
 
 // TODO next:

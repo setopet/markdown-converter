@@ -1,11 +1,10 @@
 export const TOKEN_TYPE = {
     START: "START",
+    END: "END",
+    BLOCK_START: "BLOCK_START",
+    BLOCK_END: "BLOCK_END",
     WORD: "WORD",
     WHITE_SPACE: "WHITE_SPACE",
-    LINE_BREAK: "LINE_BREAK",
-    END: "END",
-    HASH_TAG: "HASH_TAG",
-    DASH: "DASH",
     HEADLINE_START: "HEADLINE_START",
     LIST_ELEMENT: "LIST_ELEMENT",
     STAR: "STAR"
@@ -13,91 +12,144 @@ export const TOKEN_TYPE = {
 
 export class Tokenizer {
 
+    position = 0;
+    markdown = "";
+    tokens = [];
+
     tokenizeMarkdown(markdown) {
         if (!markdown) {
             return [{type: TOKEN_TYPE.START}, {type: TOKEN_TYPE.END}]
         }
-        const tokens = [];
-        let position = 0;
-        tokens.push({
+        this.markdown = markdown;
+        this.tokens.push({
             type: TOKEN_TYPE.START
         });
-        while (position < markdown.length) {
-            let char = markdown.charAt(position);
-            this.tokenize(char, tokens);
-            position++;
+        this.tokens.push({
+            type: TOKEN_TYPE.BLOCK_START
+        })
+        for (let char = this.moveToNextChar(); char; char = this.moveToNextChar()) {
+            this.nextToken(char, this.tokens);
         }
-        this.tokenize(null, tokens);
-        return tokens;
+        this.nextToken(null, this.tokens);
+        const result = this.tokens;
+        this.tokens = [];
+        this.position = 0;
+        return result;
     }
 
-    tokenize(char, tokens) {
+    moveToNextChar() {
+        const char = this.nextChar();
+        if (!char) {
+            return null;
+        } else {
+            this.position++;
+            return char;
+        }
+    }
+
+    nextChar() {
+        return this.charAt(this.position);
+    }
+
+    charAt(index) {
+        if (index >= this.markdown.length) {
+            return null;
+        } else {
+            return this.markdown.charAt(index);
+        }
+    }
+
+    lastToken() {
+        return this.tokens.at(-1);
+    }
+
+    toWordToken(char) {
+        if (this.tokens.at(-1).type === TOKEN_TYPE.WORD) {
+            this.tokens.at(-1).value.push(char);
+        } else {
+            this.tokens.push({
+                type: TOKEN_TYPE.WORD,
+                value: [char]
+            })
+        }
+    }
+
+    nextToken(char) {
+        const lastToken = this.lastToken(this.tokens);
+
         switch (char) {
             case ' ':
-                if (this.getLastToken(tokens).type === TOKEN_TYPE.WORD) {
-                    this.densifyWordToken(char, tokens);
-                } else if (this.getLastToken(tokens).type === TOKEN_TYPE.DASH && this.lastTokenIsAtLineStart(tokens)) {
-                    tokens.pop();
-                    if (this.getLastToken(tokens).type === TOKEN_TYPE.WHITE_SPACE) {
-                        const indentation = tokens.pop();
-                        tokens.push({
-                            type: TOKEN_TYPE.LIST_ELEMENT,
-                            level: indentation.level
-                        })
-                    } else {
-                        tokens.push({
-                            type: TOKEN_TYPE.LIST_ELEMENT,
-                            level: 0
-                        })
-                    }
-                } else if (this.getLastToken(tokens).type === TOKEN_TYPE.HASH_TAG && this.lastTokenIsAtLineStart(tokens)) {
-                    const level = tokens.pop().level;
-                    tokens.push({
-                        type: TOKEN_TYPE.HEADLINE_START,
-                        level: level
-                    })
-                } else if (this.getLastToken(tokens).type === TOKEN_TYPE.WHITE_SPACE) {
-                    this.getLastToken(tokens).level++;
+                if (this.lastToken().type === TOKEN_TYPE.WHITE_SPACE) {
+                    this.lastToken().level++;
                 } else {
-                    tokens.push({
+                    this.tokens.push({
                         type: TOKEN_TYPE.WHITE_SPACE,
                         level: 1,
-                        value: ' '
+                        value: ' ',
+                        isIndentation: this.lastToken(this.tokens).type === TOKEN_TYPE.BLOCK_START
                     });
                 }
                 return;
             case '\n':
-                tokens.push({
-                    type: TOKEN_TYPE.LINE_BREAK
+                this.tokens.push({
+                    type: TOKEN_TYPE.BLOCK_END
                 });
+                this.tokens.push({
+                    type: TOKEN_TYPE.BLOCK_START,
+                })
                 return;
             case '#':
-                if (this.getLastToken(tokens).type === TOKEN_TYPE.HASH_TAG) {
-                    this.getLastToken(tokens).level++;
-                } else {
-                    tokens.push({
-                        type: TOKEN_TYPE.HASH_TAG,
-                        level: 1,
-                        value: '#'
-                    })
+                if (lastToken.type === TOKEN_TYPE.BLOCK_START || (lastToken.type === TOKEN_TYPE.WHITE_SPACE && lastToken.isIndentation)) {
+                    let headlineLevel = 1;
+                    let index = this.position;
+                    for (let nextChar = this.charAt(index); nextChar === '#'; nextChar = this.charAt(index)) {
+                        headlineLevel++;
+                        index++;
+                    }
+                    if (this.charAt(index) === ' ') {
+                        this.position += headlineLevel;
+                        this.tokens.push({
+                            type: TOKEN_TYPE.HEADLINE_START,
+                            level: headlineLevel
+                        })
+                        return;
+                    }
                 }
+                this.toWordToken(char);
                 return;
             case '-':
-                tokens.push({
-                    type: TOKEN_TYPE.DASH,
-                    value: '-'
-                });
+                if (this.nextChar() === ' ') {
+                    this.moveToNextChar();
+                    if (lastToken.type === TOKEN_TYPE.BLOCK_START) {
+                        this.tokens.push({
+                            type: TOKEN_TYPE.LIST_ELEMENT,
+                            level: 0
+                        });
+                        return;
+                    } else if (lastToken.type === TOKEN_TYPE.WHITE_SPACE && lastToken.isIndentation) {
+                        const indentation = this.tokens.pop();
+                        this.tokens.push({
+                            type: TOKEN_TYPE.LIST_ELEMENT,
+                            level: indentation.level
+                        });
+                        return;
+                    }
+                }
+                this.toWordToken(char);
                 return;
             case null:
-                tokens.push({
+                this.tokens.push({
+                    type: TOKEN_TYPE.BLOCK_END
+                })
+                this.tokens.push({
                     type: TOKEN_TYPE.END,
                 });
                 return;
             case '*':
-                if (this.getLastToken(tokens).type === TOKEN_TYPE.STAR) {
-                    this.getLastToken(tokens).level++;
+                if (this.lastToken().type === TOKEN_TYPE.STAR) {
+                    this.lastToken().level++;
                 } else {
-                    tokens.push({
+                    this.tokens.push({
                         type: TOKEN_TYPE.STAR,
                         level: 1,
                         value: '*'
@@ -105,41 +157,9 @@ export class Tokenizer {
                 }
                 return;
             default:
-                this.densifyWordToken(char, tokens);
+                this.toWordToken(char);
         }
     }
 
-    densifyWordToken(char, tokens) {
-        if (tokens.at(-1).type === TOKEN_TYPE.WORD) {
-            tokens.at(-1).value.push(char);
-        } else {
-            tokens.push({
-                type: TOKEN_TYPE.WORD,
-                value: [char]
-            })
-        }
-    }
-
-    getLastToken(tokens) {
-        return tokens.at(-1);
-    }
-
-    lastTokenIsAtLineStart(tokens) {
-        if (tokens.length < 2) {
-            return false;
-        }
-        const beforeLastToken = tokens.at(tokens.length - 2).type;
-        if (beforeLastToken === TOKEN_TYPE.START || beforeLastToken === TOKEN_TYPE.LINE_BREAK) {
-            return true;
-        }
-        if (tokens.length > 2) {
-            const beforeBeforeLastToken = tokens.at(tokens.length - 3).type
-            if (beforeLastToken === TOKEN_TYPE.WHITE_SPACE && (beforeBeforeLastToken === TOKEN_TYPE.LINE_BREAK ||
-                beforeBeforeLastToken === TOKEN_TYPE.START)) {
-                return true;
-            }
-        }
-        return false;
-    }
 
 }

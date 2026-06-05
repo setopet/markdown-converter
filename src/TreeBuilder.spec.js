@@ -21,16 +21,21 @@ export const exampleTree =
                 children: [
                     {
                         type: NODE_TYPE.TEXT,
-                        value: [..."paragraph "],
+                        value: [..."paragraph"],
                         children: []
                     },
                     {
                         type: NODE_TYPE.STRONG,
                         children: [{
                             type: NODE_TYPE.TEXT,
-                            value: [..."bold also "],
+                            value: [..."bold"],
                             children: []
                         },
+                            {
+                                type: NODE_TYPE.TEXT,
+                                value: [..."also"],
+                                children: []
+                            },
                             {
                                 type: NODE_TYPE.ITALICS,
                                 children: [{
@@ -41,7 +46,7 @@ export const exampleTree =
                             },
                             {
                                 type: NODE_TYPE.TEXT,
-                                value: [" "],
+                                value: [..."bold"],
                                 children: []
                             }
                         ]
@@ -52,7 +57,7 @@ export const exampleTree =
     }
 
 test("build tree", () => {
-    expect(treeBuilder.buildTree("# headline\nparagraph **bold also *italics* **")).toEqual(
+    expect(treeBuilder.buildTree("# headline\nparagraph **bold also *italics* bold**")).toEqual(
         exampleTree
     )
 })

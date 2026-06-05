@@ -35,10 +35,13 @@ export class TreeBuilder {
             const tokenType = token.type;
             switch (tokenType) {
                 case TOKEN_TYPE.START:
+                case TOKEN_TYPE.WHITE_SPACE:
+                case TOKEN_TYPE.END:
+                    break;
+                case TOKEN_TYPE.BLOCK_START:
                     state = this.BUILDER_STATE.FINISHED_BLOCK;
                     break;
-                case TOKEN_TYPE.LINE_BREAK:
-                case TOKEN_TYPE.END:
+                case TOKEN_TYPE.BLOCK_END:
                     state = this.BUILDER_STATE.FINISHED_BLOCK;
                     const nodeType = stack.at(-1).type;
                     if (nodeType === NODE_TYPE.PARAGRAPH || nodeType === NODE_TYPE.HEADLINE) {
@@ -59,7 +62,7 @@ export class TreeBuilder {
                     break;
                 case TOKEN_TYPE.STAR:
                     const lastDelimiter = delimiterStack.at(-1);
-                    if (lastDelimiter?.type === TOKEN_TYPE.STAR && lastDelimiter.level === token.level) {
+                    if (lastDelimiter && lastDelimiter.token.type === TOKEN_TYPE.STAR && lastDelimiter.token.level === token.level) {
                         delimiterStack.pop();
                         let inlineType;
                         if (token.level === 1) {
@@ -71,24 +74,27 @@ export class TreeBuilder {
                             type: inlineType,
                             children: []
                         };
-                        let node = stack.at(-1).children.pop();
-                        while (node?.value?.join('') !== lastDelimiter.value[0].repeat(lastDelimiter.level)) {
+                        const currentPosition = stack.at(-1).children.length;
+                        const matchingPosition = lastDelimiter.position;
+                        for (let i = currentPosition;  i > matchingPosition; i--) {
+                            let node = stack.at(-1).children.pop();
                             inlineNode.children.unshift(node);
-                            node = stack.at(-1).children.pop();
                         }
                         stack.at(-1).children.push(inlineNode);
                         break;
                     } else {
-                        delimiterStack.push(token);
+                        delimiterStack.push({
+                            token: token,
+                            position: stack.at(-1).children.length
+                        });
+                        break;
                     }
-                case TOKEN_TYPE.DASH:
-                case TOKEN_TYPE.HASH_TAG:
-                default:
+                case TOKEN_TYPE.WORD:
                     const textNode =
                         {
                             type: NODE_TYPE.TEXT,
                             children: [],
-                            value: token.level ? [...Array(token.level).keys()].flatMap(_ => token.value) : [...token.value]
+                            value: [...token.value]
                         }
                     if (state === this.BUILDER_STATE.FINISHED_BLOCK) {
                         const node = {
@@ -103,6 +109,9 @@ export class TreeBuilder {
                     } else {
                         stack.at(-1).children.push(textNode);
                     }
+                    break;
+                default:
+                    throw new Error(`Unknown token type ${tokenType}`);
             }
             position++;
         }
