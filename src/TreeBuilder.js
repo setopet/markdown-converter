@@ -21,7 +21,6 @@ export class TreeBuilder {
     }
 
     buildTree(markdown) {
-        const tokens = this.tokenizer.tokenizeMarkdown(markdown);
         const root = {
             type: NODE_TYPE.ROOT,
             children: []
@@ -32,8 +31,9 @@ export class TreeBuilder {
             delimiterStack: [],
             flag: this.FLAGS.NEW_BLOCK
         }
-        while (state.position < tokens.length) {
-            const token = tokens[state.position];
+        const tokenizer = new Tokenizer(markdown);
+        while (tokenizer.hasNextToken()) {
+            const token = tokenizer.nextToken();
             const tokenType = token.type;
             switch (tokenType) {
                 case TOKEN_TYPE.START:
@@ -77,7 +77,7 @@ export class TreeBuilder {
                         };
                         const currentPosition = state.nodeStack.at(-1).children.length;
                         const matchingPosition = lastDelimiter.position;
-                        for (let i = currentPosition;  i > matchingPosition; i--) {
+                        for (let i = currentPosition; i > matchingPosition; i--) {
                             let node = state.nodeStack.at(-1).children.pop();
                             inlineNode.children.unshift(node);
                         }

@@ -12,29 +12,57 @@ export const TOKEN_TYPE = {
 
 export class Tokenizer {
 
-    position = 0;
-    markdown = "";
-    tokens = [];
+    AT_START = -2;
+    AT_BLOCK_START = -1;
 
-    tokenizeMarkdown(markdown) {
-        if (!markdown) {
-            return [{type: TOKEN_TYPE.START}, {type: TOKEN_TYPE.END}]
+    state = {
+        position: this.AT_START,
+        markdown: "",
+        lastToken: undefined
+    }
+
+    constructor(markdown) {
+        this.state.markdown = markdown ?? "";
+    }
+
+    nextToken() {
+        if (this.state.position === this.AT_START) {
+            this.state.position++;
+            return this.setAndReturnToken({
+                type: TOKEN_TYPE.START
+            });
+        } else if (this.state.position === this.AT_BLOCK_START) {
+            this.state.position++;
+            return this.setAndReturnToken({
+                type: TOKEN_TYPE.BLOCK_START
+            });
+        } else if (this.state.position === this.state.markdown.length) {
+            this.state.position++;
+            return this.setAndReturnToken({
+                type: TOKEN_TYPE.BLOCK_END,
+            });
+        } else if (this.state.position === this.state.markdown.length + 1) {
+            this.state.position++;
+            return this.setAndReturnToken({
+                type: TOKEN_TYPE.END,
+            });
+        } else if (this.state.lastToken.type === TOKEN_TYPE.END) {
+            throw new Error("No more tokens available");
+        } else {
+            return this.nextTokenFromChar(this.moveToNextChar());
         }
-        this.markdown = markdown;
-        this.tokens.push({
-            type: TOKEN_TYPE.START
-        });
-        this.tokens.push({
-            type: TOKEN_TYPE.BLOCK_START
-        })
-        for (let char = this.moveToNextChar(); char; char = this.moveToNextChar()) {
-            this.nextToken(char, this.tokens);
+    }
+
+    tokenizeMarkdown() {
+        const tokens = [];
+        while (this.hasNextToken()) {
+            tokens.push(this.nextToken());
         }
-        this.nextToken(null, this.tokens);
-        const result = this.tokens;
-        this.tokens = [];
-        this.position = 0;
-        return result;
+        return tokens;
+    }
+
+    hasNextToken() {
+        return this.state.lastToken?.type !== TOKEN_TYPE.END;
     }
 
     moveToNextChar() {
@@ -42,124 +70,118 @@ export class Tokenizer {
         if (!char) {
             return null;
         } else {
-            this.position++;
+            this.state.position++;
             return char;
         }
     }
 
     nextChar() {
-        return this.charAt(this.position);
+        return this.charAt(this.state.position);
     }
 
     charAt(index) {
-        if (index >= this.markdown.length) {
+        if (index >= this.state.markdown.length) {
             return null;
         } else {
-            return this.markdown.charAt(index);
+            return this.state.markdown.charAt(index);
         }
-    }
-
-    lastToken() {
-        return this.tokens.at(-1);
     }
 
     toWordToken(char) {
-        if (this.tokens.at(-1).type === TOKEN_TYPE.WORD) {
-            this.tokens.at(-1).value.push(char);
-        } else {
-            this.tokens.push({
-                type: TOKEN_TYPE.WORD,
-                value: [char]
-            })
+        const word = [char];
+        let character = this.nextChar();
+        while (character && character !== ' ' && character !== "\n" && character !== "-" && character !== "*") {
+            word.push(character);
+            this.moveToNextChar();
+            character = this.nextChar();
         }
+        return this.setAndReturnToken({
+            type: TOKEN_TYPE.WORD,
+            value: word
+        });
     }
 
-    nextToken(char) {
-        const lastToken = this.lastToken(this.tokens);
+    setAndReturnToken(token) {
+        this.state.lastToken = token;
+        return token;
+    }
+
+    nextTokenFromChar(char) {
+        const lastToken = this.state.lastToken;
+
+        if (lastToken.type === TOKEN_TYPE.BLOCK_END) {
+            this.state.position--;
+            return this.setAndReturnToken({
+                type: TOKEN_TYPE.BLOCK_START,
+            });
+        }
+
+        let token;
 
         switch (char) {
             case ' ':
-                if (this.lastToken().type === TOKEN_TYPE.WHITE_SPACE) {
-                    this.lastToken().level++;
-                } else {
-                    this.tokens.push({
-                        type: TOKEN_TYPE.WHITE_SPACE,
-                        level: 1,
-                        value: ' ',
-                        isIndentation: this.lastToken(this.tokens).type === TOKEN_TYPE.BLOCK_START
-                    });
+                token = ({
+                    type: TOKEN_TYPE.WHITE_SPACE,
+                    level: 1,
+                    value: ' ',
+                    isIndentation: lastToken.type === TOKEN_TYPE.BLOCK_START
+                });
+                while (this.nextChar() === ' ') {
+                    token.level++;
+                    this.moveToNextChar();
                 }
-                return;
+                return this.setAndReturnToken(token);
             case '\n':
-                this.tokens.push({
+                return this.setAndReturnToken({
                     type: TOKEN_TYPE.BLOCK_END
                 });
-                this.tokens.push({
-                    type: TOKEN_TYPE.BLOCK_START,
-                })
-                return;
             case '#':
                 if (lastToken.type === TOKEN_TYPE.BLOCK_START || (lastToken.type === TOKEN_TYPE.WHITE_SPACE && lastToken.isIndentation)) {
                     let headlineLevel = 1;
-                    let index = this.position;
+                    let index = this.state.position;
                     for (let nextChar = this.charAt(index); nextChar === '#'; nextChar = this.charAt(index)) {
                         headlineLevel++;
                         index++;
                     }
                     if (this.charAt(index) === ' ') {
-                        this.position += headlineLevel;
-                        this.tokens.push({
+                        this.state.position += headlineLevel;
+                        return this.setAndReturnToken({
                             type: TOKEN_TYPE.HEADLINE_START,
                             level: headlineLevel
-                        })
-                        return;
+                        });
                     }
                 }
-                this.toWordToken(char);
-                return;
+                return this.toWordToken(char);
             case '-':
                 if (this.nextChar() === ' ') {
                     this.moveToNextChar();
                     if (lastToken.type === TOKEN_TYPE.BLOCK_START) {
-                        this.tokens.push({
+                        return this.setAndReturnToken({
                             type: TOKEN_TYPE.LIST_ELEMENT,
                             level: 0
                         });
-                        return;
                     } else if (lastToken.type === TOKEN_TYPE.WHITE_SPACE && lastToken.isIndentation) {
-                        const indentation = this.tokens.pop();
-                        this.tokens.push({
+                        return this.setAndReturnToken({
                             type: TOKEN_TYPE.LIST_ELEMENT,
-                            level: indentation.level
+                            level: lastToken.level
                         });
-                        return;
                     }
                 }
-                this.toWordToken(char);
-                return;
-            case null:
-                this.tokens.push({
-                    type: TOKEN_TYPE.BLOCK_END
-                })
-                this.tokens.push({
-                    type: TOKEN_TYPE.END,
-                });
-                return;
+                return this.toWordToken(char);
             case '*':
-                if (this.lastToken().type === TOKEN_TYPE.STAR) {
-                    this.lastToken().level++;
-                } else {
-                    this.tokens.push({
-                        type: TOKEN_TYPE.STAR,
-                        level: 1,
-                        value: '*'
-                    });
+                token = {
+                    type: TOKEN_TYPE.STAR,
+                    level: 1,
+                    value: '*'
+                };
+                while (this.nextChar() === '*') {
+                    this.moveToNextChar();
+                    token.level++;
                 }
-                return;
+                return this.setAndReturnToken(token);
             default:
-                this.toWordToken(char);
+                return this.toWordToken(char);
         }
     }
-
 
 }
