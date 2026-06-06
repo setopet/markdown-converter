@@ -2,14 +2,10 @@ import {TOKEN_TYPE, Tokenizer} from "./Tokenizer";
 
 
 test("tokenize empty", () => {
-    expect(new Tokenizer("").tokenizeMarkdown()).toStrictEqual([{
-        type: TOKEN_TYPE.START
-    },
+    expect(new Tokenizer("").tokenizeMarkdown()).toStrictEqual([
         {type: TOKEN_TYPE.BLOCK_START},
         {type: TOKEN_TYPE.BLOCK_END},
-        {
-            type: TOKEN_TYPE.END
-        }]);
+        ]);
 })
 
 test("tokenize hash tag", () => {

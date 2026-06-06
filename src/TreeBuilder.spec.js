@@ -1,7 +1,5 @@
 import {NODE_TYPE, TreeBuilder} from "./TreeBuilder";
 
-const treeBuilder = new TreeBuilder();
-
 export const exampleTree =
     {
         type: NODE_TYPE.ROOT,
@@ -54,10 +52,10 @@ export const exampleTree =
                 ]
             }
         ]
-    }
+    };
 
 test("build tree", () => {
-    expect(treeBuilder.buildTree("# headline\nparagraph **bold also *italics* bold**")).toEqual(
+    expect(new TreeBuilder("# headline\nparagraph **bold also *italics* bold**").buildDocumentTree()).toEqual(
         exampleTree
     )
 })

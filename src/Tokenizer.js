@@ -1,6 +1,4 @@
 export const TOKEN_TYPE = {
-    START: "START",
-    END: "END",
     BLOCK_START: "BLOCK_START",
     BLOCK_END: "BLOCK_END",
     WORD: "WORD",
@@ -12,8 +10,7 @@ export const TOKEN_TYPE = {
 
 export class Tokenizer {
 
-    AT_START = -2;
-    AT_BLOCK_START = -1;
+    AT_START = -1;
 
     state = {
         position: this.AT_START,
@@ -29,11 +26,6 @@ export class Tokenizer {
         if (this.state.position === this.AT_START) {
             this.state.position++;
             return this.setAndReturnToken({
-                type: TOKEN_TYPE.START
-            });
-        } else if (this.state.position === this.AT_BLOCK_START) {
-            this.state.position++;
-            return this.setAndReturnToken({
                 type: TOKEN_TYPE.BLOCK_START
             });
         } else if (this.state.position === this.state.markdown.length) {
@@ -41,12 +33,7 @@ export class Tokenizer {
             return this.setAndReturnToken({
                 type: TOKEN_TYPE.BLOCK_END,
             });
-        } else if (this.state.position === this.state.markdown.length + 1) {
-            this.state.position++;
-            return this.setAndReturnToken({
-                type: TOKEN_TYPE.END,
-            });
-        } else if (this.state.lastToken.type === TOKEN_TYPE.END) {
+        } else if (!this.hasNextToken()) {
             throw new Error("No more tokens available");
         } else {
             return this.nextTokenFromChar(this.moveToNextChar());
@@ -62,7 +49,7 @@ export class Tokenizer {
     }
 
     hasNextToken() {
-        return this.state.lastToken?.type !== TOKEN_TYPE.END;
+        return this.state.position <= this.state.markdown.length;
     }
 
     moveToNextChar() {
