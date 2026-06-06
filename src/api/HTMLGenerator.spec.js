@@ -1,4 +1,4 @@
-import {HTMLGenerator} from "./HTMLGenerator";
+import {HTMLGenerator} from "./HTMLGenerator.js";
 
 const generator = new HTMLGenerator();
 

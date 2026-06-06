@@ -1,4 +1,4 @@
-import {TOKEN_TYPE, Tokenizer} from "./Tokenizer";
+import {TOKEN_TYPE, Tokenizer} from "./Tokenizer.js";
 
 
 test("tokenize empty", () => {

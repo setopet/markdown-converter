@@ -1,5 +1,5 @@
-import {NODE_TYPE} from "./TreeBuilder";
-import {HTMLGenerator} from "./HTMLGenerator";
+import {HTMLGenerator} from "./HTMLGenerator.js";
+import {NODE_TYPE} from "./TreeModel.js";
 
 export class TreeWalker {
 

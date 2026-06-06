@@ -1,4 +1,5 @@
-import {NODE_TYPE, TreeBuilder} from "./TreeBuilder";
+import {TreeBuilder} from "./TreeBuilder.js";
+import {NODE_TYPE} from "../api/TreeModel.js";
 
 export const exampleTree =
     {

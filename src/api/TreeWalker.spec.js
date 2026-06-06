@@ -1,5 +1,5 @@
-import {exampleTree} from "./TreeBuilder.spec";
-import {TreeWalker} from "./TreeWalker";
+import {exampleTree} from "../lib/TreeBuilder.spec.js";
+import {TreeWalker} from "./TreeWalker.js";
 
 const walker = new TreeWalker();
 
