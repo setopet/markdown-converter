@@ -119,6 +119,12 @@ export class Tokenizer {
                 }
                 return this.setAndReturnToken(token);
             case '\n':
+                if(lastToken.type === TOKEN_TYPE.BLOCK_START || (lastToken.type === TOKEN_TYPE.WHITE_SPACE && lastToken.isIndentation)) {
+                    return this.setAndReturnToken({
+                        type: TOKEN_TYPE.BLOCK_END,
+                        isBlankLine: true
+                    })
+                }
                 return this.setAndReturnToken({
                     type: TOKEN_TYPE.BLOCK_END
                 });

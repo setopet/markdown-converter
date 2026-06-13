@@ -46,6 +46,11 @@ test("convert nested formats", () => {
     expect(MarkdownConverter.convertToHtml("**this is bold and *this is also italics* bold**")).toBe("<p><b>this is bold and <i>this is also italics</i> bold</b></p>");
 })
 
+test("convert list", () => {
+    expect(MarkdownConverter.convertToHtml("- This is a **list** element\n- Second *list* element"))
+        .toBe("<ul><li>This is a <b>list</b> element</li>\n<li>Second <i>list</i> element</li></ul>");
+})
+
 const exampleTree = [
     {
         type: NODE_TYPE.PARAGRAPH,

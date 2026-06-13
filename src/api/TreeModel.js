@@ -8,4 +8,6 @@ export const NODE_TYPE = {
     TEXT: "TEXT",
     STRONG: "STRONG",
     ITALICS: "ITALICS",
+    LIST: "LIST",
+    LIST_ELEMENT: "LIST_ELEMENT"
 }

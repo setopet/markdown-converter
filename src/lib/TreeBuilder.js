@@ -51,6 +51,7 @@ export class TreeBuilder {
         while (tokenizer.hasNextToken()) {
             const token = tokenizer.nextToken();
             const tokenType = token.type;
+            const lastNode = this.state.nodeStack.at(-1);
             switch (tokenType) {
                 case TOKEN_TYPE.WHITE_SPACE:
                     break;
@@ -58,9 +59,17 @@ export class TreeBuilder {
                     this.state.flag = this.FLAGS.NEW_BLOCK;
                     break;
                 case TOKEN_TYPE.BLOCK_END:
-                    const nodeType = this.state.nodeStack.at(-1).type;
+                    const nodeType = lastNode.type;
                     this.state.delimiterStack = [];
-                    if (nodeType === NODE_TYPE.PARAGRAPH || nodeType === NODE_TYPE.HEADLINE) {
+                    if(nodeType === NODE_TYPE.LIST_ELEMENT) {
+                       this.state.nodeStack.pop();
+                       if(token.isBlankLine || !tokenizer.hasNextToken()) {
+                          return this.state.nodeStack.pop();
+                       } else {
+                           break;
+                       }
+                    }
+                    else if (nodeType === NODE_TYPE.PARAGRAPH || nodeType === NODE_TYPE.HEADLINE) {
                         return this.state.nodeStack.pop();
                     } else if (nodeType === NODE_TYPE.ROOT) {
                         const emptyTextNode = {
@@ -81,7 +90,7 @@ export class TreeBuilder {
                         value: []
                     };
                     this.state.flag = this.FLAGS.READING_BLOCK;
-                    this.state.nodeStack.at(-1).children.push(node);
+                    lastNode.children.push(node);
                     this.state.nodeStack.push(node);
                     break;
                 case TOKEN_TYPE.STAR:
@@ -98,18 +107,18 @@ export class TreeBuilder {
                             type: inlineType,
                             children: []
                         };
-                        const currentPosition = this.state.nodeStack.at(-1).children.length;
+                        const currentPosition = lastNode.children.length;
                         const matchingPosition = lastDelimiter.position;
                         for (let i = currentPosition; i > matchingPosition; i--) {
-                            let node = this.state.nodeStack.at(-1).children.pop();
+                            let node = lastNode.children.pop();
                             inlineNode.children.unshift(node);
                         }
-                        this.state.nodeStack.at(-1).children.push(inlineNode);
+                        lastNode.children.push(inlineNode);
                         break;
                     } else {
                         this.state.delimiterStack.push({
                             token: token,
-                            position: this.state.nodeStack.at(-1).children.length
+                            position: lastNode.children.length
                         });
                         break;
                     }
@@ -128,11 +137,27 @@ export class TreeBuilder {
                             ]
                         }
                         this.state.flag = this.FLAGS.READING_BLOCK;
-                        this.state.nodeStack.at(-1).children.push(node);
+                        lastNode.children.push(node);
                         this.state.nodeStack.push(node);
                     } else {
-                        this.state.nodeStack.at(-1).children.push(textNode);
+                        lastNode.children.push(textNode);
                     }
+                    break;
+                case TOKEN_TYPE.LIST_ELEMENT:
+                    this.state.flag = this.FLAGS.READING_BLOCK;
+                    const listElement = {
+                        type: NODE_TYPE.LIST_ELEMENT,
+                        children: []
+                    }
+                    if (lastNode.type === NODE_TYPE.LIST) {
+                        lastNode.children.push(listElement);
+                    } else {
+                        this.state.nodeStack.push({
+                            type: NODE_TYPE.LIST,
+                            children: [listElement]
+                        })
+                    }
+                    this.state.nodeStack.push(listElement);
                     break;
                 default:
                     throw new Error(`Unknown token type ${tokenType}`);

@@ -19,4 +19,12 @@ export class HTMLGenerator {
         return `<i>${text}</i>`;
     }
 
+    generateList(text) {
+        return `<ul>${text}</ul>`;
+    }
+
+    generateListElement(text) {
+        return `<li>${text}</li>`;
+    }
+
 }

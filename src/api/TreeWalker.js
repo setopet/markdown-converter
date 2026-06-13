@@ -18,6 +18,12 @@ export class TreeWalker {
             case NODE_TYPE.PARAGRAPH:
                 text = node.children.map(child => this.convertTree(child)).join(' ');
                 return this.generator.generateParagraph(text);
+            case NODE_TYPE.LIST:
+                text = node.children.map(child => this.convertTree(child)).join('\n');
+                return this.generator.generateList(text);
+            case NODE_TYPE.LIST_ELEMENT:
+                text = node.children.map(child => this.convertTree(child)).join(' ');
+                return this.generator.generateListElement(text);
             case NODE_TYPE.TEXT:
                 text = node.value.join('');
                 return text;
